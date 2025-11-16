@@ -1,0 +1,365 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, Minus, Trash2, Save, Printer, FileText } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+interface MenuItem {
+  id: string;
+  name: string;
+  price: number;
+}
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+}
+
+interface Settings {
+  tax_percentage: number;
+}
+
+const Billing = () => {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [settings, setSettings] = useState<Settings>({ tax_percentage: 5 });
+  const [discount, setDiscount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [savedBills, setSavedBills] = useState<any[]>([]);
+  const [currentBillId, setCurrentBillId] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    fetchMenuItems();
+    fetchSettings();
+    fetchSavedBills();
+  }, []);
+
+  const fetchMenuItems = async () => {
+    const { data, error } = await supabase
+      .from("menu_items")
+      .select("*")
+      .eq("is_active", true)
+      .order("name");
+
+    if (error) {
+      toast({ title: "Error loading menu", description: error.message, variant: "destructive" });
+    } else {
+      setMenuItems(data || []);
+    }
+  };
+
+  const fetchSettings = async () => {
+    const { data } = await supabase.from("settings").select("tax_percentage").single();
+    if (data) setSettings(data);
+  };
+
+  const fetchSavedBills = async () => {
+    const { data } = await supabase
+      .from("bills")
+      .select("*")
+      .eq("status", "draft")
+      .order("created_at", { ascending: false });
+    setSavedBills(data || []);
+  };
+
+  const addToCart = (item: MenuItem) => {
+    const existing = cart.find((c) => c.id === item.id);
+    if (existing) {
+      setCart(cart.map((c) => (c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c)));
+    } else {
+      setCart([...cart, { ...item, quantity: 1 }]);
+    }
+  };
+
+  const updateQuantity = (id: string, change: number) => {
+    setCart(
+      cart
+        .map((item) =>
+          item.id === id ? { ...item, quantity: Math.max(0, item.quantity + change) } : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  };
+
+  const removeItem = (id: string) => {
+    setCart(cart.filter((item) => item.id !== id));
+  };
+
+  const calculateTotals = () => {
+    const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const taxAmount = (subtotal * settings.tax_percentage) / 100;
+    const total = subtotal + taxAmount - discount;
+    return { subtotal, taxAmount, total };
+  };
+
+  const saveBill = async (printAfter = false) => {
+    if (cart.length === 0) {
+      toast({ title: "Cart is empty", variant: "destructive" });
+      return;
+    }
+
+    const { subtotal, taxAmount, total } = calculateTotals();
+
+    const billData = {
+      subtotal,
+      tax_amount: taxAmount,
+      discount,
+      total,
+      payment_method: paymentMethod || null,
+      status: printAfter ? "printed" : "draft",
+    };
+
+    let billId = currentBillId;
+
+    if (currentBillId) {
+      // Update existing bill
+      const { error: billError } = await supabase
+        .from("bills")
+        .update(billData)
+        .eq("id", currentBillId);
+
+      if (billError) {
+        toast({ title: "Error updating bill", description: billError.message, variant: "destructive" });
+        return;
+      }
+
+      // Delete old items
+      await supabase.from("bill_items").delete().eq("bill_id", currentBillId);
+    } else {
+      // Create new bill
+      const { data: bill, error: billError } = await supabase
+        .from("bills")
+        .insert(billData)
+        .select()
+        .single();
+
+      if (billError || !bill) {
+        toast({ title: "Error creating bill", description: billError?.message, variant: "destructive" });
+        return;
+      }
+      billId = bill.id;
+    }
+
+    // Insert bill items
+    const items = cart.map((item) => ({
+      bill_id: billId,
+      item_name_snapshot: item.name,
+      price_snapshot: item.price,
+      quantity: item.quantity,
+      line_total: item.price * item.quantity,
+    }));
+
+    const { error: itemsError } = await supabase.from("bill_items").insert(items);
+
+    if (itemsError) {
+      toast({ title: "Error saving items", description: itemsError.message, variant: "destructive" });
+      return;
+    }
+
+    toast({ title: printAfter ? "Bill saved & printed!" : "Bill saved!", description: "Successfully saved." });
+    
+    if (printAfter) {
+      clearCart();
+    } else {
+      fetchSavedBills();
+    }
+  };
+
+  const loadBill = async (billId: string) => {
+    const { data: billItems } = await supabase
+      .from("bill_items")
+      .select("*")
+      .eq("bill_id", billId);
+
+    if (billItems) {
+      const { data: billData } = await supabase.from("bills").select("*").eq("id", billId).single();
+      
+      setCart(
+        billItems.map((item) => ({
+          id: item.id,
+          name: item.item_name_snapshot,
+          price: Number(item.price_snapshot),
+          quantity: item.quantity,
+        }))
+      );
+      
+      if (billData) {
+        setDiscount(Number(billData.discount));
+        setPaymentMethod(billData.payment_method || "");
+        setCurrentBillId(billId);
+      }
+    }
+  };
+
+  const clearCart = () => {
+    setCart([]);
+    setDiscount(0);
+    setPaymentMethod("");
+    setCurrentBillId(null);
+  };
+
+  const { subtotal, taxAmount, total } = calculateTotals();
+
+  const filteredMenuItems = menuItems.filter((item) =>
+    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-3">
+      {/* Menu Items */}
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle>Menu Items</CardTitle>
+          <Input
+            placeholder="Search menu items..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredMenuItems.map((item) => (
+              <Card
+                key={item.id}
+                className="cursor-pointer transition-all hover:shadow-md"
+                onClick={() => addToCart(item)}
+              >
+                <CardContent className="p-4">
+                  <h3 className="font-semibold">{item.name}</h3>
+                  <p className="text-lg text-primary">₹{item.price.toFixed(2)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cart & Totals */}
+      <div className="space-y-4">
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Bill</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {cart.length === 0 ? (
+              <p className="text-center text-muted-foreground">No items in cart</p>
+            ) : (
+              <div className="space-y-2">
+                {cart.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between border-b pb-2">
+                    <div className="flex-1">
+                      <p className="font-medium">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="icon" variant="outline" onClick={() => updateQuantity(item.id, -1)}>
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <span className="w-8 text-center">{item.quantity}</span>
+                      <Button size="icon" variant="outline" onClick={() => updateQuantity(item.id, 1)}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="icon"
+                        variant="destructive"
+                        onClick={() => removeItem(item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-2 border-t pt-4">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>₹{subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax ({settings.tax_percentage}%):</span>
+                <span>₹{taxAmount.toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Discount:</span>
+                <Input
+                  type="number"
+                  className="w-24 text-right"
+                  value={discount}
+                  onChange={(e) => setDiscount(Number(e.target.value))}
+                />
+              </div>
+              <div className="flex justify-between text-lg font-bold">
+                <span>Total:</span>
+                <span>₹{total.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+              <SelectTrigger>
+                <SelectValue placeholder="Payment Method" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cash">Cash</SelectItem>
+                <SelectItem value="card">Card</SelectItem>
+                <SelectItem value="upi">UPI</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <div className="space-y-2">
+              <Button className="w-full" onClick={clearCart} variant="outline">
+                <FileText className="mr-2 h-4 w-4" />
+                New Bill
+              </Button>
+              <Button className="w-full" onClick={() => saveBill(false)}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Bill
+              </Button>
+              <Button className="w-full" onClick={() => saveBill(true)} variant="default">
+                <Printer className="mr-2 h-4 w-4" />
+                Save & Print
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Saved Bills */}
+        {savedBills.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Saved Bills</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {savedBills.map((bill) => (
+                <Button
+                  key={bill.id}
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => loadBill(bill.id)}
+                >
+                  Bill #{bill.bill_number} - ₹{Number(bill.total).toFixed(2)}
+                </Button>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Billing;
