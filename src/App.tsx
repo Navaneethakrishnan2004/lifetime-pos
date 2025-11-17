@@ -7,6 +7,7 @@ import { Layout } from "./components/Layout";
 import Billing from "./pages/Billing";
 import MenuManagement from "./pages/MenuManagement";
 import PreviousBills from "./pages/PreviousBills";
+import Reports from "./pages/Reports";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
@@ -23,6 +24,7 @@ const App = () => (
             <Route path="/" element={<Billing />} />
             <Route path="/menu" element={<MenuManagement />} />
             <Route path="/bills" element={<PreviousBills />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<SettingsPage />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
