@@ -1,4 +1,4 @@
-import { Receipt, Package, FileText, Settings } from "lucide-react";
+import { Receipt, Package, FileText, BarChart3, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar,
@@ -16,6 +16,7 @@ const menuItems = [
   { title: "Billing", url: "/", icon: Receipt },
   { title: "Menu Management", url: "/menu", icon: Package },
   { title: "Previous Bills", url: "/bills", icon: FileText },
+  { title: "Revenue Reports", url: "/reports", icon: BarChart3 },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
