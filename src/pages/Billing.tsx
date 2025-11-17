@@ -30,21 +30,35 @@ interface Settings {
   tax_percentage: number;
 }
 
+interface ShopSettings extends Settings {
+  shop_name: string;
+  shop_phone?: string;
+}
+
 const Billing = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [settings, setSettings] = useState<Settings>({ tax_percentage: 5 });
+  const [settings, setSettings] = useState<ShopSettings>({ tax_percentage: 5, shop_name: "My Shop" });
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [savedBills, setSavedBills] = useState<any[]>([]);
   const [currentBillId, setCurrentBillId] = useState<string | null>(null);
+  const [todayRevenue, setTodayRevenue] = useState(0);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchMenuItems();
     fetchSettings();
     fetchSavedBills();
+    fetchTodayRevenue();
+    
+    // Check if editing a bill from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const editBillId = urlParams.get('edit');
+    if (editBillId) {
+      loadBillById(editBillId);
+    }
   }, []);
 
   const fetchMenuItems = async () => {
@@ -62,8 +76,21 @@ const Billing = () => {
   };
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from("settings").select("tax_percentage").single();
+    const { data } = await supabase.from("settings").select("tax_percentage, shop_name, shop_phone").single();
     if (data) setSettings(data);
+  };
+
+  const fetchTodayRevenue = async () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const { data } = await supabase
+      .from("bills")
+      .select("total")
+      .neq("status", "draft")
+      .gte("date", today.toISOString());
+    
+    const revenue = data?.reduce((sum, bill) => sum + Number(bill.total), 0) || 0;
+    setTodayRevenue(revenue);
   };
 
   const fetchSavedBills = async () => {
@@ -172,10 +199,95 @@ const Billing = () => {
     toast({ title: printAfter ? "Bill saved & printed!" : "Bill saved!", description: "Successfully saved." });
     
     if (printAfter) {
-      clearCart();
-    } else {
-      fetchSavedBills();
+      printBill(billId!);
     }
+
+    clearCart();
+    fetchSavedBills();
+    fetchTodayRevenue();
+  };
+
+  const printBill = async (billId: string) => {
+    const { data: bill } = await supabase.from("bills").select("*").eq("id", billId).single();
+    const { data: items } = await supabase.from("bill_items").select("*").eq("bill_id", billId);
+    
+    if (!bill || !items) return;
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const billDate = new Date(bill.date);
+    const formattedDate = `${billDate.toLocaleDateString()}, ${billDate.toLocaleTimeString()}`;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Bill #${bill.bill_number}</title>
+          <style>
+            body {
+              font-family: 'Courier New', monospace;
+              max-width: 300px;
+              margin: 20px auto;
+              padding: 0;
+            }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .divider { border-top: 1px dashed #000; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 5px; text-align: left; }
+            th { border-bottom: 1px solid #000; }
+            .right { text-align: right; }
+            .total-row { border-top: 1px solid #000; padding-top: 5px; }
+            .grand-total { font-size: 1.2em; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="center bold">${settings.shop_name}</div>
+          ${settings.shop_phone ? `<div class="center">Phone: ${settings.shop_phone}</div>` : ''}
+          <div class="divider"></div>
+          <div class="bold">Bill #: ${bill.bill_number}</div>
+          <div>Date: ${formattedDate}</div>
+          ${bill.payment_method ? `<div>Payment: ${bill.payment_method}</div>` : ''}
+          <div class="divider"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="right">Qty</th>
+                <th class="right">Price</th>
+                <th class="right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${items.map(item => `
+                <tr>
+                  <td>${item.item_name_snapshot}</td>
+                  <td class="right">${item.quantity}</td>
+                  <td class="right">${Number(item.price_snapshot).toFixed(2)}</td>
+                  <td class="right">${Number(item.line_total).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          <table class="total-row">
+            <tr><td>Subtotal:</td><td class="right">₹${Number(bill.subtotal).toFixed(2)}</td></tr>
+            <tr><td>Tax (${settings.tax_percentage}%):</td><td class="right">₹${Number(bill.tax_amount).toFixed(2)}</td></tr>
+            ${bill.discount > 0 ? `<tr><td>Discount:</td><td class="right">₹${Number(bill.discount).toFixed(2)}</td></tr>` : ''}
+            <tr class="grand-total"><td>TOTAL:</td><td class="right">₹${Number(bill.total).toFixed(2)}</td></tr>
+          </table>
+          <div class="divider"></div>
+          <div class="center">Thank you for your business!</div>
+          <div class="center">Visit again!</div>
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
   };
 
   const loadBill = async (billId: string) => {
@@ -201,6 +313,14 @@ const Billing = () => {
         setPaymentMethod(billData.payment_method || "");
         setCurrentBillId(billId);
       }
+    }
+  };
+
+  const loadBillById = async (billId: string) => {
+    await loadBill(billId);
+    const { data: bill } = await supabase.from("bills").select("bill_number").eq("id", billId).single();
+    if (bill) {
+      toast({ title: "Bill loaded", description: `Editing Bill #${bill.bill_number}` });
     }
   };
 
@@ -249,7 +369,7 @@ const Billing = () => {
 
       {/* Cart & Totals */}
       <div className="space-y-4">
-        <Card>
+        <Card className="dark:bg-card/80 dark:border-border/50">
           <CardHeader>
             <CardTitle>Current Bill</CardTitle>
           </CardHeader>
