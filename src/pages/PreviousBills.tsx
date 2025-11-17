@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Eye, Printer } from "lucide-react";
+import { Search, Eye, Printer, Edit } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 
@@ -103,15 +103,96 @@ const PreviousBills = () => {
     setIsDialogOpen(true);
   };
 
-  const printBill = () => {
-    window.print();
-    toast({ title: "Print", description: "Opening print dialog..." });
+  const printBill = async () => {
+    if (!selectedBill) return;
+
+    const { data: settings } = await supabase.from("settings").select("shop_name, shop_phone, tax_percentage").single();
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+
+    const billDate = new Date(selectedBill.date);
+    const formattedDate = `${billDate.toLocaleDateString()}, ${billDate.toLocaleTimeString()}`;
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Bill #${selectedBill.bill_number}</title>
+          <style>
+            body {
+              font-family: 'Courier New', monospace;
+              max-width: 300px;
+              margin: 20px auto;
+              padding: 0;
+            }
+            .center { text-align: center; }
+            .bold { font-weight: bold; }
+            .divider { border-top: 1px dashed #000; margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { padding: 5px; text-align: left; }
+            th { border-bottom: 1px solid #000; }
+            .right { text-align: right; }
+            .total-row { border-top: 1px solid #000; padding-top: 5px; }
+            .grand-total { font-size: 1.2em; font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="center bold">${settings?.shop_name || 'My Shop'}</div>
+          ${settings?.shop_phone ? `<div class="center">Phone: ${settings.shop_phone}</div>` : ''}
+          <div class="divider"></div>
+          <div class="bold">Bill #: ${selectedBill.bill_number}</div>
+          <div>Date: ${formattedDate}</div>
+          ${selectedBill.payment_method ? `<div>Payment: ${selectedBill.payment_method}</div>` : ''}
+          <div class="divider"></div>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th class="right">Qty</th>
+                <th class="right">Price</th>
+                <th class="right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${billItems.map(item => `
+                <tr>
+                  <td>${item.item_name_snapshot}</td>
+                  <td class="right">${item.quantity}</td>
+                  <td class="right">${Number(item.price_snapshot).toFixed(2)}</td>
+                  <td class="right">${Number(item.line_total).toFixed(2)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="divider"></div>
+          <table class="total-row">
+            <tr><td>Subtotal:</td><td class="right">₹${Number(selectedBill.subtotal).toFixed(2)}</td></tr>
+            <tr><td>Tax (${settings?.tax_percentage || 0}%):</td><td class="right">₹${Number(selectedBill.tax_amount).toFixed(2)}</td></tr>
+            ${selectedBill.discount > 0 ? `<tr><td>Discount:</td><td class="right">₹${Number(selectedBill.discount).toFixed(2)}</td></tr>` : ''}
+            <tr class="grand-total"><td>TOTAL:</td><td class="right">₹${Number(selectedBill.total).toFixed(2)}</td></tr>
+          </table>
+          <div class="divider"></div>
+          <div class="center">Thank you for your business!</div>
+          <div class="center">Visit again!</div>
+        </body>
+      </html>
+    `);
+    
+    printWindow.document.close();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const editBill = () => {
+    // Navigate to billing page with bill data
+    window.location.href = `/bills?edit=${selectedBill?.id}`;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6 p-4 md:p-0">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Previous Bills</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">Previous Bills</h1>
       </div>
 
       <Card>
@@ -129,28 +210,28 @@ const PreviousBills = () => {
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Bill #</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="whitespace-nowrap">Bill #</TableHead>
+                <TableHead className="whitespace-nowrap">Date</TableHead>
+                <TableHead className="whitespace-nowrap">Total</TableHead>
+                <TableHead className="whitespace-nowrap">Payment</TableHead>
+                <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredBills.map((bill) => (
                 <TableRow key={bill.id}>
                   <TableCell className="font-medium">#{bill.bill_number}</TableCell>
-                  <TableCell>{format(new Date(bill.date), "dd/MM/yyyy HH:mm")}</TableCell>
+                  <TableCell className="whitespace-nowrap">{format(new Date(bill.date), "dd/MM/yyyy HH:mm")}</TableCell>
                   <TableCell>₹{Number(bill.total).toFixed(2)}</TableCell>
                   <TableCell className="capitalize">{bill.payment_method || "N/A"}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => viewBill(bill)}>
-                      <Eye className="mr-2 h-4 w-4" />
-                      View
+                      <Eye className="h-4 w-4 md:mr-2" />
+                      <span className="hidden md:inline">View</span>
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -161,7 +242,7 @@ const PreviousBills = () => {
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Bill #{selectedBill?.bill_number}</DialogTitle>
           </DialogHeader>
@@ -222,10 +303,16 @@ const PreviousBills = () => {
                 </div>
               </div>
 
-              <Button className="w-full" onClick={printBill}>
-                <Printer className="mr-2 h-4 w-4" />
-                Print Bill
-              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                <Button variant="outline" onClick={editBill}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit Bill
+                </Button>
+                <Button onClick={printBill}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Bill
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>
