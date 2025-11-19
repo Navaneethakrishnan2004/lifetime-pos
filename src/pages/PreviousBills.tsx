@@ -119,26 +119,41 @@ const PreviousBills = () => {
         <head>
           <title>Bill #${selectedBill.bill_number}</title>
           <style>
+            @page {
+              size: 58mm auto;
+              margin: 0;
+            }
+            @media print {
+              body {
+                width: 58mm;
+                margin: 0;
+                padding: 2mm;
+              }
+            }
             body {
-              font-family: 'Courier New', monospace;
-              max-width: 300px;
-              margin: 20px auto;
-              padding: 0;
+              font-family: 'Courier New', 'Consolas', monospace;
+              width: 58mm;
+              margin: 0 auto;
+              padding: 2mm;
+              font-size: 10px;
+              line-height: 1.3;
+              color: #000;
+              background: #fff;
             }
             .center { text-align: center; }
             .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 10px 0; }
-            table { width: 100%; border-collapse: collapse; }
-            th, td { padding: 5px; text-align: left; }
+            .divider { border-top: 1px dashed #000; margin: 3px 0; }
+            table { width: 100%; border-collapse: collapse; font-size: 9px; }
+            th, td { padding: 2px 0; text-align: left; }
             th { border-bottom: 1px solid #000; }
             .right { text-align: right; }
-            .total-row { border-top: 1px solid #000; padding-top: 5px; }
-            .grand-total { font-size: 1.2em; font-weight: bold; }
+            .total-row { border-top: 1px solid #000; padding-top: 3px; margin-top: 3px; }
+            .grand-total { font-size: 11px; font-weight: bold; }
           </style>
         </head>
         <body>
           <div class="center bold">${settings?.shop_name || 'My Shop'}</div>
-          ${settings?.shop_phone ? `<div class="center">Phone: ${settings.shop_phone}</div>` : ''}
+          ${settings?.shop_phone ? `<div class="center">Ph: ${settings.shop_phone}</div>` : ''}
           <div class="divider"></div>
           <div class="bold">Bill #: ${selectedBill.bill_number}</div>
           <div>Date: ${formattedDate}</div>
@@ -172,7 +187,7 @@ const PreviousBills = () => {
             <tr class="grand-total"><td>TOTAL:</td><td class="right">₹${Number(selectedBill.total).toFixed(2)}</td></tr>
           </table>
           <div class="divider"></div>
-          <div class="center">Thank you for your business!</div>
+          <div class="center">Thank you!</div>
           <div class="center">Visit again!</div>
         </body>
       </html>

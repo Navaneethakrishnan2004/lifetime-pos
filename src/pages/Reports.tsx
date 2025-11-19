@@ -4,11 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, TrendingUp, DollarSign, ShoppingCart, Receipt } from "lucide-react";
+import { CalendarIcon, TrendingUp, DollarSign, ShoppingCart, Receipt, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, eachDayOfInterval, eachWeekOfInterval, eachMonthOfInterval } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface RevenueData {
   date: string;
@@ -133,12 +135,76 @@ const Reports = () => {
     setPaymentData(paymentChartData);
   };
 
+  const downloadPDF = async () => {
+    const { data: bills, error } = await supabase
+      .from("bills")
+      .select("*, bill_items(*)")
+      .neq("status", "draft")
+      .gte("date", startDate.toISOString())
+      .lte("date", endDate.toISOString())
+      .order("date");
+
+    if (error || !bills || bills.length === 0) {
+      toast({ 
+        title: "No data", 
+        description: "No bills found for selected date range", 
+        variant: "destructive" 
+      });
+      return;
+    }
+
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(18);
+    doc.text("Bills Report", 14, 20);
+    doc.setFontSize(11);
+    doc.text(`Period: ${format(startDate, "PPP")} - ${format(endDate, "PPP")}`, 14, 28);
+    
+    // Summary
+    doc.setFontSize(10);
+    doc.text(`Total Bills: ${bills.length}`, 14, 36);
+    doc.text(`Total Revenue: ₹${totalRevenue.toFixed(2)}`, 14, 42);
+    doc.text(`Average Bill: ₹${avgBillValue.toFixed(2)}`, 14, 48);
+
+    // Bills table
+    const tableData = bills.map((bill: any) => [
+      bill.bill_number,
+      format(new Date(bill.date), "dd/MM/yyyy HH:mm"),
+      bill.payment_method || "N/A",
+      `₹${Number(bill.subtotal).toFixed(2)}`,
+      `₹${Number(bill.tax_amount).toFixed(2)}`,
+      `₹${Number(bill.discount).toFixed(2)}`,
+      `₹${Number(bill.total).toFixed(2)}`,
+    ]);
+
+    autoTable(doc, {
+      startY: 55,
+      head: [["Bill #", "Date", "Payment", "Subtotal", "Tax", "Discount", "Total"]],
+      body: tableData,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [52, 152, 219] },
+    });
+
+    doc.save(`bills-report-${format(startDate, "yyyy-MM-dd")}-to-${format(endDate, "yyyy-MM-dd")}.pdf`);
+    
+    toast({ 
+      title: "Success", 
+      description: "Report downloaded successfully" 
+    });
+  };
+
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--warning))', 'hsl(var(--info))'];
 
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-0">
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <h1 className="text-2xl md:text-3xl font-bold">Revenue Reports</h1>
+        <Button onClick={downloadPDF} className="gap-2">
+          <Download className="h-4 w-4" />
+          Download PDF Report
+        </Button>
       </div>
 
       {/* Period Selection */}
