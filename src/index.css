@@ -42,21 +42,21 @@ All colors MUST be HSL.
     --warning: 38 92% 50%;
     --info: 199 89% 48%;
 
-    --sidebar-background: 187 85% 43%;
+    --sidebar-background: 220 20% 18%;
 
     --sidebar-foreground: 0 0% 98%;
 
     --sidebar-primary: 0 0% 100%;
 
-    --sidebar-primary-foreground: 187 85% 43%;
+    --sidebar-primary-foreground: 220 20% 18%;
 
-    --sidebar-accent: 187 75% 50%;
+    --sidebar-accent: 187 85% 43%;
 
     --sidebar-accent-foreground: 0 0% 100%;
 
-    --sidebar-border: 187 85% 38%;
+    --sidebar-border: 220 20% 22%;
 
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-ring: 187 85% 43%;
   }
 
   .dark {
@@ -88,14 +88,14 @@ All colors MUST be HSL.
     --input: 220 15% 20%;
     --ring: 187 85% 43%;
     
-    --sidebar-background: 187 85% 43%;
-    --sidebar-foreground: 0 0% 100%;
+    --sidebar-background: 220 20% 15%;
+    --sidebar-foreground: 0 0% 98%;
     --sidebar-primary: 0 0% 100%;
-    --sidebar-primary-foreground: 187 85% 43%;
-    --sidebar-accent: 187 75% 50%;
+    --sidebar-primary-foreground: 220 20% 15%;
+    --sidebar-accent: 187 85% 43%;
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 187 85% 38%;
-    --sidebar-ring: 0 0% 100%;
+    --sidebar-border: 220 20% 18%;
+    --sidebar-ring: 187 85% 43%;
     
     --success: 142 76% 36%;
     --warning: 38 92% 50%;
