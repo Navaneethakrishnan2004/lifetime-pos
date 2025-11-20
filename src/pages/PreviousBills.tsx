@@ -111,7 +111,58 @@ const PreviousBills = () => {
     if (!printWindow) return;
 
     const billDate = new Date(selectedBill.date);
-    const formattedDate = `${billDate.toLocaleDateString()}, ${billDate.toLocaleTimeString()}`;
+    const formattedDate = `${billDate.toLocaleDateString()} ${billDate.toLocaleTimeString()}`;
+
+    // Helper function to center text (32 chars for 58mm)
+    const center = (text: string, width = 32) => {
+      const padding = Math.max(0, Math.floor((width - text.length) / 2));
+      return ' '.repeat(padding) + text;
+    };
+
+    // Helper function to create line with left and right text
+    const line = (left: string, right: string, width = 32) => {
+      const space = width - left.length - right.length;
+      return left + ' '.repeat(Math.max(1, space)) + right;
+    };
+
+    const divider = '-'.repeat(32);
+
+    let receipt = '';
+    receipt += center(settings?.shop_name || 'My Shop') + '\n';
+    if (settings?.shop_phone) {
+      receipt += center(`Ph: ${settings.shop_phone}`) + '\n';
+    }
+    receipt += divider + '\n';
+    receipt += `Bill #: ${selectedBill.bill_number}\n`;
+    receipt += `Date: ${formattedDate}\n`;
+    if (selectedBill.payment_method) {
+      receipt += `Payment: ${selectedBill.payment_method}\n`;
+    }
+    receipt += divider + '\n';
+    receipt += 'Item             Qty Price Total\n';
+    receipt += divider + '\n';
+
+    billItems.forEach(item => {
+      const name = item.item_name_snapshot.length > 16 
+        ? item.item_name_snapshot.substring(0, 13) + '...'
+        : item.item_name_snapshot.padEnd(16);
+      const qty = item.quantity.toString().padStart(3);
+      const price = Number(item.price_snapshot).toFixed(2).padStart(5);
+      const total = Number(item.line_total).toFixed(2).padStart(6);
+      receipt += `${name} ${qty} ${price} ${total}\n`;
+    });
+
+    receipt += divider + '\n';
+    receipt += line('Subtotal:', `Rs.${Number(selectedBill.subtotal).toFixed(2)}`) + '\n';
+    receipt += line(`Tax (${settings?.tax_percentage || 0}%):`, `Rs.${Number(selectedBill.tax_amount).toFixed(2)}`) + '\n';
+    if (selectedBill.discount > 0) {
+      receipt += line('Discount:', `Rs.${Number(selectedBill.discount).toFixed(2)}`) + '\n';
+    }
+    receipt += divider + '\n';
+    receipt += line('TOTAL:', `Rs.${Number(selectedBill.total).toFixed(2)}`) + '\n';
+    receipt += divider + '\n';
+    receipt += center('Thank you!') + '\n';
+    receipt += center('Visit again!') + '\n\n\n';
 
     printWindow.document.write(`
       <!DOCTYPE html>
@@ -123,73 +174,23 @@ const PreviousBills = () => {
               size: 58mm auto;
               margin: 0;
             }
+            body {
+              font-family: 'Courier New', monospace;
+              font-size: 12px;
+              line-height: 1.2;
+              margin: 0;
+              padding: 2mm;
+              white-space: pre;
+            }
             @media print {
               body {
-                width: 58mm;
                 margin: 0;
                 padding: 2mm;
               }
             }
-            body {
-              font-family: 'Courier New', 'Consolas', monospace;
-              width: 58mm;
-              margin: 0 auto;
-              padding: 2mm;
-              font-size: 10px;
-              line-height: 1.3;
-              color: #000;
-              background: #fff;
-            }
-            .center { text-align: center; }
-            .bold { font-weight: bold; }
-            .divider { border-top: 1px dashed #000; margin: 3px 0; }
-            table { width: 100%; border-collapse: collapse; font-size: 9px; }
-            th, td { padding: 2px 0; text-align: left; }
-            th { border-bottom: 1px solid #000; }
-            .right { text-align: right; }
-            .total-row { border-top: 1px solid #000; padding-top: 3px; margin-top: 3px; }
-            .grand-total { font-size: 11px; font-weight: bold; }
           </style>
         </head>
-        <body>
-          <div class="center bold">${settings?.shop_name || 'My Shop'}</div>
-          ${settings?.shop_phone ? `<div class="center">Ph: ${settings.shop_phone}</div>` : ''}
-          <div class="divider"></div>
-          <div class="bold">Bill #: ${selectedBill.bill_number}</div>
-          <div>Date: ${formattedDate}</div>
-          ${selectedBill.payment_method ? `<div>Payment: ${selectedBill.payment_method}</div>` : ''}
-          <div class="divider"></div>
-          <table>
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th class="right">Qty</th>
-                <th class="right">Price</th>
-                <th class="right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${billItems.map(item => `
-                <tr>
-                  <td>${item.item_name_snapshot}</td>
-                  <td class="right">${item.quantity}</td>
-                  <td class="right">${Number(item.price_snapshot).toFixed(2)}</td>
-                  <td class="right">${Number(item.line_total).toFixed(2)}</td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <div class="divider"></div>
-          <table class="total-row">
-            <tr><td>Subtotal:</td><td class="right">₹${Number(selectedBill.subtotal).toFixed(2)}</td></tr>
-            <tr><td>Tax (${settings?.tax_percentage || 0}%):</td><td class="right">₹${Number(selectedBill.tax_amount).toFixed(2)}</td></tr>
-            ${selectedBill.discount > 0 ? `<tr><td>Discount:</td><td class="right">₹${Number(selectedBill.discount).toFixed(2)}</td></tr>` : ''}
-            <tr class="grand-total"><td>TOTAL:</td><td class="right">₹${Number(selectedBill.total).toFixed(2)}</td></tr>
-          </table>
-          <div class="divider"></div>
-          <div class="center">Thank you!</div>
-          <div class="center">Visit again!</div>
-        </body>
+        <body>${receipt}</body>
       </html>
     `);
     
