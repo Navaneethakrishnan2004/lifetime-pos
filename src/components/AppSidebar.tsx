@@ -1,5 +1,6 @@
-import { Receipt, Package, FileText, BarChart3, Settings } from "lucide-react";
+import { ChevronRight, Package, FileText, BarChart3, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
+import mcsLogo from "@/assets/mcs-logo.png";
 import {
   Sidebar,
   SidebarContent,
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const menuItems = [
-  { title: "Billing", url: "/", icon: Receipt },
+  { title: "Billing", url: "/", icon: ChevronRight },
   { title: "Menu Management", url: "/menu", icon: Package },
   { title: "Previous Bills", url: "/bills", icon: FileText },
   { title: "Revenue Reports", url: "/reports", icon: BarChart3 },
@@ -25,12 +26,12 @@ export function AppSidebar() {
     <Sidebar className="border-r">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-            <Receipt className="h-6 w-6 text-primary-foreground" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden bg-background">
+            <img src={mcsLogo} alt="MCS Logo" className="h-full w-full object-contain" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-foreground">POS System</h2>
-            <p className="text-xs text-muted-foreground">Modern Billing</p>
+            <h2 className="text-lg font-bold text-sidebar-foreground">MCS Billing</h2>
+            <p className="text-xs text-sidebar-foreground/70">Modern POS</p>
           </div>
         </div>
       </SidebarHeader>
