@@ -96,6 +96,7 @@ export type Database = {
       }
       menu_items: {
         Row: {
+          category: string | null
           created_at: string | null
           id: string
           is_active: boolean | null
@@ -104,6 +105,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          category?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null
@@ -112,6 +114,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          category?: string | null
           created_at?: string | null
           id?: string
           is_active?: boolean | null

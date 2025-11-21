@@ -27,6 +27,7 @@ interface MenuItem {
   id: string;
   name: string;
   price: number;
+  category: string;
   is_active: boolean;
 }
 
@@ -34,7 +35,7 @@ const MenuManagement = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
-  const [formData, setFormData] = useState({ name: "", price: "" });
+  const [formData, setFormData] = useState({ name: "", price: "", category: "" });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -57,7 +58,7 @@ const MenuManagement = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.price) {
+    if (!formData.name || !formData.price || !formData.category) {
       toast({ title: "Error", description: "Please fill all fields", variant: "destructive" });
       return;
     }
@@ -65,6 +66,7 @@ const MenuManagement = () => {
     const itemData = {
       name: formData.name,
       price: parseFloat(formData.price),
+      category: formData.category,
     };
 
     if (editingItem) {
@@ -89,14 +91,14 @@ const MenuManagement = () => {
     }
 
     setIsDialogOpen(false);
-    setFormData({ name: "", price: "" });
+    setFormData({ name: "", price: "", category: "" });
     setEditingItem(null);
     fetchMenuItems();
   };
 
   const handleEdit = (item: MenuItem) => {
     setEditingItem(item);
-    setFormData({ name: item.name, price: item.price.toString() });
+    setFormData({ name: item.name, price: item.price.toString(), category: item.category });
     setIsDialogOpen(true);
   };
 
@@ -132,7 +134,7 @@ const MenuManagement = () => {
         <h1 className="text-3xl font-bold">Menu Management</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => { setEditingItem(null); setFormData({ name: "", price: "" }); }}>
+            <Button onClick={() => { setEditingItem(null); setFormData({ name: "", price: "", category: "" }); }}>
               <Plus className="mr-2 h-4 w-4" />
               Add Item
             </Button>
@@ -149,6 +151,15 @@ const MenuManagement = () => {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="Enter item name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  placeholder="e.g. Food, Beverages, Fast Foods"
                 />
               </div>
               <div>
@@ -179,6 +190,7 @@ const MenuManagement = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
+                <TableHead>Category</TableHead>
                 <TableHead>Price</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -188,6 +200,7 @@ const MenuManagement = () => {
               {menuItems.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.category}</TableCell>
                   <TableCell>₹{item.price.toFixed(2)}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
