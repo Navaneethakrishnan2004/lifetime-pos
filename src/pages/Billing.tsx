@@ -17,6 +17,7 @@ interface MenuItem {
   id: string;
   name: string;
   price: number;
+  category: string;
 }
 
 interface CartItem {
@@ -24,6 +25,7 @@ interface CartItem {
   name: string;
   price: number;
   quantity: number;
+  category: string;
 }
 
 interface Settings {
@@ -321,6 +323,7 @@ const Billing = () => {
           name: item.item_name_snapshot,
           price: Number(item.price_snapshot),
           quantity: item.quantity,
+          category: "Uncategorized",
         }))
       );
       
@@ -350,7 +353,8 @@ const Billing = () => {
   const { subtotal, taxAmount, total } = calculateTotals();
 
   const filteredMenuItems = menuItems.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase())
+    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    item.category.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -375,6 +379,7 @@ const Billing = () => {
               >
                 <CardContent className="p-4">
                   <h3 className="font-semibold">{item.name}</h3>
+                  <p className="text-xs text-muted-foreground mb-1">{item.category}</p>
                   <p className="text-lg text-primary">₹{item.price.toFixed(2)}</p>
                 </CardContent>
               </Card>
@@ -398,6 +403,7 @@ const Billing = () => {
                   <div key={item.id} className="flex items-center justify-between border-b pb-2">
                     <div className="flex-1">
                       <p className="font-medium">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.category}</p>
                       <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
                     </div>
                     <div className="flex items-center gap-2">
