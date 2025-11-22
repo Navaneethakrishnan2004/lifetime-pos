@@ -154,23 +154,43 @@ const Reports = () => {
     }
 
     const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
     
-    // Header
-    doc.setFontSize(18);
-    doc.text("Bills Report", 14, 20);
-    doc.setFontSize(11);
-    doc.text(`Period: ${format(startDate, "PPP")} - ${format(endDate, "PPP")}`, 14, 28);
+    // Header with better spacing
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
+    doc.text("Revenue Report", pageWidth / 2, 22, { align: "center" });
     
-    // Summary
     doc.setFontSize(10);
-    doc.text(`Total Bills: ${bills.length}`, 14, 36);
-    doc.text(`Total Revenue: ₹${totalRevenue.toFixed(2)}`, 14, 42);
-    doc.text(`Average Bill: ₹${avgBillValue.toFixed(2)}`, 14, 48);
+    doc.setFont("helvetica", "normal");
+    doc.text(`Period: ${format(startDate, "MMM dd, yyyy")} - ${format(endDate, "MMM dd, yyyy")}`, pageWidth / 2, 30, { align: "center" });
+    
+    // Summary boxes with better layout
+    doc.setFillColor(240, 240, 240);
+    doc.roundedRect(14, 38, 58, 24, 3, 3, "F");
+    doc.roundedRect(76, 38, 58, 24, 3, 3, "F");
+    doc.roundedRect(138, 38, 58, 24, 3, 3, "F");
+    
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    doc.text("Total Bills", 43, 46, { align: "center" });
+    doc.text("Total Revenue", 105, 46, { align: "center" });
+    doc.text("Average Bill", 167, 46, { align: "center" });
+    
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0, 0, 0);
+    doc.text(bills.length.toString(), 43, 56, { align: "center" });
+    doc.text(`₹${totalRevenue.toFixed(2)}`, 105, 56, { align: "center" });
+    doc.text(`₹${avgBillValue.toFixed(2)}`, 167, 56, { align: "center" });
+    
+    doc.setFont("helvetica", "normal");
 
-    // Bills table
+    // Bills table with better formatting
     const tableData = bills.map((bill: any) => [
       bill.bill_number,
-      format(new Date(bill.date), "dd/MM/yyyy HH:mm"),
+      format(new Date(bill.date), "dd/MM/yyyy"),
+      format(new Date(bill.date), "HH:mm"),
       bill.payment_method || "N/A",
       `₹${Number(bill.subtotal).toFixed(2)}`,
       `₹${Number(bill.tax_amount).toFixed(2)}`,
@@ -179,15 +199,39 @@ const Reports = () => {
     ]);
 
     autoTable(doc, {
-      startY: 55,
-      head: [["Bill #", "Date", "Payment", "Subtotal", "Tax", "Discount", "Total"]],
+      startY: 72,
+      head: [["Bill #", "Date", "Time", "Payment", "Subtotal", "Tax", "Discount", "Total"]],
       body: tableData,
-      theme: "grid",
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [52, 152, 219] },
+      theme: "striped",
+      styles: { 
+        fontSize: 9,
+        cellPadding: 3,
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      headStyles: { 
+        fillColor: [41, 128, 185],
+        textColor: [255, 255, 255],
+        fontSize: 9,
+        fontStyle: "bold",
+        halign: "center",
+      },
+      columnStyles: {
+        0: { halign: "center" },
+        1: { halign: "center" },
+        2: { halign: "center" },
+        3: { halign: "center" },
+        4: { halign: "right" },
+        5: { halign: "right" },
+        6: { halign: "right" },
+        7: { halign: "right", fontStyle: "bold" },
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245],
+      },
     });
 
-    doc.save(`bills-report-${format(startDate, "yyyy-MM-dd")}-to-${format(endDate, "yyyy-MM-dd")}.pdf`);
+    doc.save(`revenue-report-${format(startDate, "yyyy-MM-dd")}-to-${format(endDate, "yyyy-MM-dd")}.pdf`);
     
     toast({ 
       title: "Success", 
