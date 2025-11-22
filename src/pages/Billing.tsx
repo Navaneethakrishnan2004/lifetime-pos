@@ -44,6 +44,7 @@ const Billing = () => {
   const [discount, setDiscount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
   const [savedBills, setSavedBills] = useState<any[]>([]);
   const [currentBillId, setCurrentBillId] = useState<string | null>(null);
   const [todayRevenue, setTodayRevenue] = useState(0);
@@ -352,10 +353,15 @@ const Billing = () => {
 
   const { subtotal, taxAmount, total } = calculateTotals();
 
-  const filteredMenuItems = menuItems.filter((item) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Get unique categories
+  const categories = ["all", ...Array.from(new Set(menuItems.map(item => item.category)))];
+
+  const filteredMenuItems = menuItems.filter((item) => {
+    const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === "all" || item.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="grid gap-6 lg:grid-cols-3">
@@ -363,11 +369,26 @@ const Billing = () => {
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle>Menu Items</CardTitle>
-          <Input
-            placeholder="Search menu items..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <div className="space-y-3">
+            <Input
+              placeholder="Search menu items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+            <div className="flex flex-wrap gap-2">
+              {categories.map((category) => (
+                <Button
+                  key={category}
+                  variant={selectedCategory === category ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedCategory(category)}
+                  className="capitalize"
+                >
+                  {category}
+                </Button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
