@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Minus, Trash2, Save, Printer, FileText } from "lucide-react";
+import { Plus, Minus, Trash2, Save, Printer, FileText, Pause } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -49,6 +50,7 @@ const Billing = () => {
   const [currentBillId, setCurrentBillId] = useState<string | null>(null);
   const [todayRevenue, setTodayRevenue] = useState(0);
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     fetchMenuItems();
@@ -57,12 +59,11 @@ const Billing = () => {
     fetchTodayRevenue();
     
     // Check if editing a bill from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const editBillId = urlParams.get('edit');
+    const editBillId = searchParams.get('edit');
     if (editBillId) {
       loadBillById(editBillId);
     }
-  }, []);
+  }, [searchParams]);
 
   const fetchMenuItems = async () => {
     const { data, error } = await supabase
@@ -135,7 +136,7 @@ const Billing = () => {
     return { subtotal, taxAmount, total };
   };
 
-  const saveBill = async (printAfter = false) => {
+  const saveBill = async (status: 'draft' | 'saved' | 'printed') => {
     if (cart.length === 0) {
       toast({ title: "Cart is empty", variant: "destructive" });
       return;
@@ -149,7 +150,7 @@ const Billing = () => {
       discount,
       total,
       payment_method: paymentMethod || null,
-      status: printAfter ? "printed" : "draft",
+      status,
     };
 
     let billId = currentBillId;
@@ -199,9 +200,14 @@ const Billing = () => {
       return;
     }
 
-    toast({ title: printAfter ? "Bill saved & printed!" : "Bill saved!", description: "Successfully saved." });
+    const messages = {
+      draft: "Bill held!",
+      saved: "Bill saved!",
+      printed: "Bill saved & printed!"
+    };
+    toast({ title: messages[status], description: "Successfully saved." });
     
-    if (printAfter) {
+    if (status === 'printed') {
       printBill(billId!);
     }
 
@@ -488,11 +494,15 @@ const Billing = () => {
                 <Trash2 className="mr-2 h-4 w-4" />
                 Clear
               </Button>
-              <Button className="w-full" onClick={() => saveBill(false)}>
-                <Save className="mr-2 h-4 w-4" />
-                Save Bill
+              <Button className="w-full" onClick={() => saveBill('draft')} variant="secondary">
+                <Pause className="mr-2 h-4 w-4" />
+                Hold Bill
               </Button>
-              <Button className="w-full" onClick={() => saveBill(true)} variant="default">
+              <Button className="w-full" onClick={() => saveBill('saved')} variant="outline">
+                <Save className="mr-2 h-4 w-4" />
+                Save
+              </Button>
+              <Button className="w-full" onClick={() => saveBill('printed')} variant="default">
                 <Printer className="mr-2 h-4 w-4" />
                 Save & Print
               </Button>
@@ -500,11 +510,11 @@ const Billing = () => {
           </CardContent>
         </Card>
 
-        {/* Saved Bills */}
+        {/* Held Bills */}
         {savedBills.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Saved Bills</CardTitle>
+              <CardTitle>Held Bills</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {savedBills.map((bill) => (

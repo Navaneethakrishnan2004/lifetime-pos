@@ -17,9 +17,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, Eye, Printer, Edit } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Search, Eye, Printer, Edit, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
 interface Bill {
   id: string;
@@ -47,7 +58,10 @@ const PreviousBills = () => {
   const [billItems, setBillItems] = useState<BillItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchBills();
@@ -103,6 +117,35 @@ const PreviousBills = () => {
     setIsDialogOpen(true);
   };
 
+  const editBill = (bill: Bill) => {
+    navigate(`/billing?edit=${bill.id}`);
+  };
+
+  const confirmDelete = (bill: Bill) => {
+    setBillToDelete(bill);
+    setDeleteDialogOpen(true);
+  };
+
+  const deleteBill = async () => {
+    if (!billToDelete) return;
+
+    // Delete bill items first
+    await supabase.from("bill_items").delete().eq("bill_id", billToDelete.id);
+    
+    // Then delete the bill
+    const { error } = await supabase.from("bills").delete().eq("id", billToDelete.id);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Bill deleted", description: `Bill #${billToDelete.bill_number} has been deleted.` });
+      fetchBills();
+    }
+
+    setDeleteDialogOpen(false);
+    setBillToDelete(null);
+  };
+
   const printBill = async () => {
     if (!selectedBill) return;
 
@@ -113,13 +156,11 @@ const PreviousBills = () => {
     const billDate = new Date(selectedBill.date);
     const formattedDate = `${billDate.toLocaleDateString()} ${billDate.toLocaleTimeString()}`;
 
-    // Helper function to center text (32 chars for 58mm)
     const center = (text: string, width = 32) => {
       const padding = Math.max(0, Math.floor((width - text.length) / 2));
       return ' '.repeat(padding) + text;
     };
 
-    // Helper function to create line with left and right text
     const line = (left: string, right: string, width = 32) => {
       const space = width - left.length - right.length;
       return left + ' '.repeat(Math.max(1, space)) + right;
@@ -200,11 +241,6 @@ const PreviousBills = () => {
     }, 250);
   };
 
-  const editBill = () => {
-    // Navigate to billing page with bill data
-    window.location.href = `/bills?edit=${selectedBill?.id}`;
-  };
-
   return (
     <div className="space-y-4 md:space-y-6 p-4 md:p-0">
       <div className="flex items-center justify-between">
@@ -234,6 +270,7 @@ const PreviousBills = () => {
                 <TableHead className="whitespace-nowrap">Date</TableHead>
                 <TableHead className="whitespace-nowrap">Total</TableHead>
                 <TableHead className="whitespace-nowrap">Payment</TableHead>
+                <TableHead className="whitespace-nowrap">Status</TableHead>
                 <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -244,11 +281,27 @@ const PreviousBills = () => {
                   <TableCell className="whitespace-nowrap">{format(new Date(bill.date), "dd/MM/yyyy HH:mm")}</TableCell>
                   <TableCell>₹{Number(bill.total).toFixed(2)}</TableCell>
                   <TableCell className="capitalize">{bill.payment_method || "N/A"}</TableCell>
+                  <TableCell>
+                    <span className={`px-2 py-1 rounded text-xs capitalize ${
+                      bill.status === 'printed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                      bill.status === 'saved' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                      'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                    }`}>
+                      {bill.status || 'saved'}
+                    </span>
+                  </TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="outline" onClick={() => viewBill(bill)}>
-                      <Eye className="h-4 w-4 md:mr-2" />
-                      <span className="hidden md:inline">View</span>
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      <Button size="sm" variant="outline" onClick={() => viewBill(bill)} title="View">
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => editBill(bill)} title="Edit">
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => confirmDelete(bill)} title="Delete">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -320,7 +373,7 @@ const PreviousBills = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" onClick={editBill}>
+                <Button variant="outline" onClick={() => { setIsDialogOpen(false); editBill(selectedBill); }}>
                   <Edit className="mr-2 h-4 w-4" />
                   Edit Bill
                 </Button>
@@ -333,6 +386,23 @@ const PreviousBills = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Bill #{billToDelete?.bill_number}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the bill and all its items.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteBill} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
