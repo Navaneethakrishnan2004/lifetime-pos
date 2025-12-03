@@ -290,17 +290,23 @@ const Billing = () => {
               margin: 0;
             }
             body {
-              font-family: 'Courier New', monospace;
-              font-size: 12px;
-              line-height: 1.2;
+              font-family: 'Courier New', 'Lucida Console', monospace;
+              font-size: 14px;
+              font-weight: 900;
+              line-height: 1.4;
               margin: 0;
-              padding: 2mm;
+              padding: 3mm;
               white-space: pre;
+              color: #000000;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
             }
             @media print {
               body {
                 margin: 0;
-                padding: 2mm;
+                padding: 3mm;
+                font-weight: 900;
+                color: #000000;
               }
             }
           </style>
