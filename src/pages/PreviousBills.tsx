@@ -149,7 +149,7 @@ const PreviousBills = () => {
   const printBill = async () => {
     if (!selectedBill) return;
 
-    const { data: settings } = await supabase.from("settings").select("shop_name, shop_phone, tax_percentage").single();
+    const { data: settings } = await supabase.from("settings").select("shop_name, shop_phone, shop_address, gst_number, tax_percentage").single();
     const printWindow = window.open("", "_blank");
     if (!printWindow) return;
 
@@ -170,8 +170,14 @@ const PreviousBills = () => {
 
     let receipt = '';
     receipt += center(settings?.shop_name || 'My Shop') + '\n';
+    if (settings?.shop_address) {
+      receipt += center(settings.shop_address) + '\n';
+    }
     if (settings?.shop_phone) {
       receipt += center(`Ph: ${settings.shop_phone}`) + '\n';
+    }
+    if (settings?.gst_number) {
+      receipt += center(`GST: ${settings.gst_number}`) + '\n';
     }
     receipt += divider + '\n';
     receipt += `Bill #: ${selectedBill.bill_number}\n`;
