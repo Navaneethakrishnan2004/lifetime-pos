@@ -36,6 +36,8 @@ interface Settings {
 interface ShopSettings extends Settings {
   shop_name: string;
   shop_phone?: string;
+  shop_address?: string;
+  gst_number?: string;
 }
 
 const Billing = () => {
@@ -80,7 +82,7 @@ const Billing = () => {
   };
 
   const fetchSettings = async () => {
-    const { data } = await supabase.from("settings").select("tax_percentage, shop_name, shop_phone").single();
+    const { data } = await supabase.from("settings").select("tax_percentage, shop_name, shop_phone, shop_address, gst_number").single();
     if (data) setSettings(data);
   };
 
@@ -244,8 +246,14 @@ const Billing = () => {
 
     let receipt = '';
     receipt += center(settings.shop_name) + '\n';
+    if (settings.shop_address) {
+      receipt += center(settings.shop_address) + '\n';
+    }
     if (settings.shop_phone) {
       receipt += center(`Ph: ${settings.shop_phone}`) + '\n';
+    }
+    if (settings.gst_number) {
+      receipt += center(`GST: ${settings.gst_number}`) + '\n';
     }
     receipt += divider + '\n';
     receipt += `Bill #: ${bill.bill_number}\n`;
